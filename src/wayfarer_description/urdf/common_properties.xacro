@@ -1,0 +1,168 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org.wiki/xacro">
+    
+    <material name="green">
+        <color rgba="0.0 1.0 0.0 1.0"/>
+    </material>
+
+    <material name="gray">
+        <color rgba="0.5 0.5 0.5 1.0"/>
+    </material>
+
+    <material name="black">
+        <color rgba="0 0 0 1.0"/>
+    </material>
+
+    <material name="white">
+        <color rgba="1 1 1 1.0"/>
+    </material>
+
+    <!-- ///////////////////////////////////////////////////////////////////////////////////////////////////-->
+    <!-- //////////////////////////////////// Multi link Macro Functions /////////////////////////////////// -->
+    <!-- ///////////////////////////////////////////////////////////////////////////////////////////////////-->
+     
+    <xacro:macro name="arm_connect_link" params="prefix">
+        <link name="${prefix}_arm_connect_link">
+            <visual>
+                <geometry>
+                    <mesh filename="file://$(find wayfarer_description)/meshes/wayfarer/arm_connect_link.stl" scale="${scale} ${scale} ${scale}"/>
+                </geometry>
+                <origin xyz="0 0 0" rpy="0 0 0"/>
+                <material name="white"/>
+            </visual>
+    
+            <collision>
+                <geometry>
+                    <mesh filename="file://$(find wayfarer_description)/meshes/wayfarer/arm_connect_link.stl" scale="${scale} ${scale} ${scale}"/>
+                </geometry>
+                <origin xyz="0 0 0" rpy="0 0 0" />
+            </collision>
+    
+            <xacro:box_inertia m="0.5" x="${arm_connect_length }" y="${arm_connect_width}" z="${arm_connect_height}" 
+                                o_xyz="0 ${-arm_connect_width/2 } ${-base_height}" o_rpy="0 0 ${pi/2}"/>
+        </link>
+    </xacro:macro>
+
+    <xacro:macro name="wheel_joint_link" params="prefix">
+        <link name="${prefix}_wheel_joint_link">
+            <visual>
+                <geometry>
+                    <mesh filename="file://$(find wayfarer_description)/meshes/wayfarer/wheel_joint_link.stl" scale="${scale} ${scale} ${scale}"/>
+                </geometry>
+                <origin xyz="0 0 0" rpy="0 0 0"/>
+                <material name="green"/>
+            </visual>
+    
+            <collision>
+                <geometry>
+                    <mesh filename="file://$(find wayfarer_description)/meshes/wayfarer/wheel_joint_link.stl" scale="${scale} ${scale} ${scale}"/>
+                </geometry>
+                <origin xyz="0 0 0" rpy="0 0 0" />
+            </collision>
+    
+            <xacro:box_inertia m="0.25" x="${wheel_joint_length }" y="${wheel_joint_width}" z="${wheel_joint_height}" 
+                                o_xyz="0 0 ${wheel_joint_height/2}" o_rpy="0 0 ${pi/2}"/>
+        </link>
+    </xacro:macro>
+
+    <xacro:macro name="o_wheel_joint_link" params="prefix">
+        <link name="${prefix}_o_wheel_joint_link">
+            <visual>
+                <geometry>
+                    <mesh filename="file://$(find wayfarer_description)/meshes/wayfarer/wheel_joint_link.stl" scale="${scale} ${scale} ${scale}"/>
+                </geometry>
+                <origin xyz="0 0 0" rpy="0 0 0"/>
+                <material name="white"/>
+            </visual>
+    
+            <collision>
+                <geometry>
+                    <mesh filename="file://$(find wayfarer_description)/meshes/wayfarer/wheel_joint_link.stl" scale="${scale} ${scale} ${scale}"/>
+                </geometry>
+                <origin xyz="0 0 0" rpy="0 0 0" />
+            </collision>
+    
+            <xacro:box_inertia m="0.5" x="${o_wheel_joint_length }" y="${o_wheel_joint_width}" z="${o_wheel_joint_height}" 
+                                o_xyz="0 0 ${o_wheel_joint_height/2}" o_rpy="0 ${-pi} ${pi/2}"/>
+        </link>
+    </xacro:macro>
+
+    <!-- Wheel Link-->
+    <xacro:macro name="wheel_link" params="prefix">
+        <link name="${prefix}_wheel_link">
+            <visual>
+                <geometry>
+                    <cylinder radius="${wheel_radius}" length="${wheel_length}"/>
+                </geometry>
+                <origin xyz="0 0 0" rpy="${pi/2.0} 0 0"/>
+                <material name="white"/>
+            </visual>
+
+            <collision>
+                <geometry>
+                    <sphere radius="${wheel_radius}"/>
+                </geometry>
+                <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            </collision>
+
+            <xacro:cylinder_inertia m="1.0" r="${wheel_radius}" l="${wheel_length}"
+                                    o_xyz="0 0 0" o_rpy="${pi/2.0} 0 0"/>
+        </link>
+    </xacro:macro>
+
+    <xacro:macro name="spacer" params="prefix">
+        <link name="${prefix}_spacer">
+            <visual>
+                <geometry>
+                    <mesh filename="file://$(find wayfarer_description)/meshes/wayfarer/spacer.stl" scale="${scale} ${scale} ${scale}"/>
+                </geometry>
+                <origin xyz="0 0 0" rpy="${pi/2.0} 0 0"/>
+                <material name="white"/>
+            </visual>
+
+            <collision>
+                <geometry>
+                    <mesh filename="file://$(find wayfarer_description)/meshes/wayfarer/spacer.stl" scale="${scale} ${scale} ${scale}"/>
+                </geometry>
+                <origin xyz="0.0 0.0 0.0" rpy="${pi/2.0} 0.0 0.0"/>
+            </collision>
+
+            <xacro:cylinder_inertia m="0.05" r="${spacer_radius}" l="${spacer_height}"
+            o_xyz="0 0 0" o_rpy="${pi/2.0} 0 0"/>
+</link>
+</xacro:macro>
+
+    <!-- ///////////////////////////////////////////////////////////////////////////////////////////////////-->
+    <!-- ///////////////////////////////////// Inertia Macro fucntions ///////////////////////////////////// -->
+    <!-- ///////////////////////////////////////////////////////////////////////////////////////////////////-->
+     
+    <xacro:macro name="box_inertia" params="m x y z o_xyz o_rpy">
+        <inertial>
+            <mass value="${m}"/>
+            <origin xyz="${o_xyz}" rpy="${o_rpy}"/>
+            <inertia ixx="${(m/12.0) * (y**2 + z**2)}" ixy="0" ixz="0"
+                     iyy="${(m/12.0) * (x**2 + z**2)}" iyz="0"
+                     izz="${(m/12.0) * (x**2 + y**2)}"/>
+        </inertial>
+    </xacro:macro>
+
+    <xacro:macro name="cylinder_inertia" params="m r l o_xyz o_rpy">
+        <inertial>
+            <mass value="${m}"/>
+            <origin xyz="${o_xyz}" rpy="${o_rpy}"/>
+            <inertia ixx="${(m/12.0) *(3 * r**2 + l**2)}" ixy="0.0" ixz="0.0"
+                     iyy="${(m / 12.0) *(3 * r**2 + l**2)}" iyz="0.0"
+                     izz="${(m/2) * r**2}"/>
+        </inertial>
+    </xacro:macro>
+
+    <xacro:macro name="sphere_inertia" params="m r o_xyz o_rpy">
+        <inertial>
+            <mass value="${m}"/>
+            <origin xyz="${o_xyz}" rpy="${o_rpy}"/>
+            <inertia ixx="${0.4 * m * r**2}" ixy="0.0" ixz="0.0"
+                     iyy="${0.4 * m * r**2}" iyz="0.0"
+                     izz="${0.4 * m * r**2}"/>
+        </inertial>
+    </xacro:macro>
+</robot>

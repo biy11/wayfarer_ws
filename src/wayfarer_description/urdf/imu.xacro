@@ -1,0 +1,62 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+    <xacro:property name="imu_width" value="0.008"/>
+    <xacro:property name="imu_height" value="0.004"/>
+    <xacro:property name="imu_length" value="0.008"/>
+
+    <link name="imu_link">
+        <visual>
+            <geometry>
+                <box size="${imu_length} ${imu_width} ${imu_height}"/>
+            </geometry>
+            <material name="black"/>
+        </visual>
+        <collision>
+            <geometry>
+                <box size="${imu_length} ${imu_width} ${imu_height}"/>
+            </geometry>
+        </collision>
+        <!-- Inertia-->
+         <xacro:box_inertia m="0.05" x="${imu_length}" y="${imu_width}" z="${imu_height}"
+            o_xyz="0 0 0" o_rpy="0 0 0"/>
+    </link>
+
+    <joint name="imu_base_link_joint" type="fixed">
+        <parent link="base_link"/>
+        <child link="imu_link"/>
+        <origin xyz="0.0 0.0 ${base_height + imu_height}" rpy="0.0 0.0 0.0"/>
+    </joint>
+
+    <gazebo reference="imu_link">
+      <sensor name="imu_sensor" type="imu">
+        <pose>0 0 0 0 0 0</pose>
+        <always_on>true</always_on>
+        <update_rate>100</update_rate>
+        <imu>
+          <angular_velocity>
+            <x><noise type="gaussian"/><!-- You can customize these if needed --></x>
+            <y><noise type="gaussian"/></y>
+            <z><noise type="gaussian"/></z>
+          </angular_velocity>
+          <linear_acceleration>
+            <x><noise type="gaussian"/></x>
+            <y><noise type="gaussian"/></y>
+            <z><noise type="gaussian"/></z>
+          </linear_acceleration>
+          <orientation>
+            <x><noise type="gaussian"/></x>
+            <y><noise type="gaussian"/></y>
+            <z><noise type="gaussian"/></z>
+            <w><noise type="gaussian"/></w>
+          </orientation>
+        </imu>
+    
+        <plugin name="gz::sim::systems::Imu" filename="libgz-sim-imu-system.so">
+          <topicName>/imu/data</topicName>
+          <frameName>imu_link</frameName>
+        </plugin>
+      </sensor>
+    </gazebo>
+
+</robot>
