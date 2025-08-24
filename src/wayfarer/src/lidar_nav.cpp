@@ -24,26 +24,33 @@ private:
     void lidar_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg){
         std::vector<float> ranges = msg->ranges;
         // RCLCPP_INFO(this->get_logger(), "Range Size: %d",  ranges.size() );
-        // front -15, -75
-        // back 75, 105
-        // right -105, -75
-        // left 75, 105
 
-        this->front_average = get_average_distance(msg, -105, -75);    // front
-        // this->back_average  = get_average_distance(msg, 75, 105);      // back
-        this->left_average  = get_average_distance(msg, 150, 180);     // left
-        this->right_average = get_average_distance(msg, -15, 15);      // right
+
+        this->left_average = get_average_distance(msg, -15, 15);    // front
+        this->front_average  = get_average_distance(msg, 75, 105);     // left
+        this->right_average = get_average_distance(msg, 155, 185);      // right
+        // this->front_average = get_average_distance(msg, -15, 15);
+        // this->right_average = get_average_distance(msg, -105, -75);
+        // this->left_average = get_average_distance(msg, 75, 105);
 
 
 
         RCLCPP_INFO(this->get_logger(), "Left Average: %.2f",  this->left_average );
-        RCLCPP_INFO(this->get_logger(), "front Average: %.2f",  this->front_average );
+        // RCLCPP_INFO(this->get_logger(), "front Average: %.2f",  this->front_average );
         RCLCPP_INFO(this->get_logger(), "right Average: %.2f",  this->right_average );
+        RCLCPP_INFO(this->get_logger(), "----------------------------------------" );
+
+        // RCLCPP_INFO(this->get_logger(), "Angle Increment: %.2f", msg->angle_increment);
+        // RCLCPP_INFO(this->get_logger(), "Angle Min: %.2f, Max: %.2f", msg->angle_min, msg->angle_max);
+
+        
+
+        navigate();
 
     }
 
     float sum(std::vector<float> &data){
-        int sum = 0;
+        float sum = 0;
         for (const auto &value: data){
             sum+= value;
         }
@@ -76,6 +83,45 @@ private:
             return NAN;
         }
 
+    }
+
+    void rover_move(float linear, float angular){
+        geometry_msgs::msg::Twist msg;
+        msg.linear.x = linear;
+        msg.angular.z = angular;
+        cmd_vel_pub_->publish(msg);
+    }
+
+    void navigate(){
+        // if(front_average < 0.5){
+        //     RCLCPP_INFO(this->get_logger(), "Obstacle detected ahead");
+        //     rover_move(0.0, 0.75);
+        // }else if(right_average < 0.5){
+        //     RCLCPP_INFO(this->get_logger(), "Turning left");
+        //     rover_move(0.0, -0.75);
+        // }else{
+        //     RCLCPP_INFO(this->get_logger(), "Moving forwards");
+        //     rover_move(1.5, 0.0);
+        // }
+
+        if(front_average < 0.5){
+            if(std::abs(right_average - left_average) < 0.4){
+                RCLCPP_INFO(this->get_logger(), "Obstacle detected - Turning left (default)");
+                rover_move(0.0, 0.75);
+            }else if(right_average > left_average){
+                RCLCPP_INFO(this->get_logger(), "Turning left");
+                rover_move(0.0, 0.75);
+            }else{
+                RCLCPP_INFO(this->get_logger(), "Turning right");
+                rover_move(0.0, -0.75);
+            }
+        }else{
+            RCLCPP_INFO(this->get_logger(), "Moving forward");
+            rover_move(1.5, 0.0);
+        }
+
+        
+        
     }
 
     float left_average;
