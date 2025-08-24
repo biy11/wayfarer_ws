@@ -113,69 +113,70 @@
     <joint name="top_chassis" type="fixed">
         <parent link="base_link"/>
         <child link="top_chassis_link"/>
-        <origin xyz="0 0 ${spacer_height + (base_height*2)}" rpy="${pi} 0 0"/>
+        <origin xyz="0 0 ${spacer_height + (base_height*2)}" rpy="0 0 0"/>
     </joint>
 
     <!-- Base link to arm connect links -->
     <joint name="base_front_arm_connect_joint" type="fixed">
         <parent link="base_link"/>
         <child link="front_arm_connect_link"/>
-        <origin xyz="0 ${base_length/4 - (arm_connect_length/2)} ${-arm_connect_height/2.0 - (base_height/2)}" rpy="${pi} 0 0"/>
+        <origin xyz="0 ${base_length/4 - (arm_connect_length/2)} ${-arm_connect_height/2.0 - (base_height/2)}" rpy="0 0 0"/>
     </joint>
 
     <joint name="base_back_arm_connect_joint" type="fixed">
         <parent link="base_link"/>
         <child link="back_arm_connect_link"/>
-        <origin xyz="0 ${-base_length/4 - (arm_connect_length/2)} ${-arm_connect_height/2.0 - (base_height/2)}" rpy="${pi} 0 0"/>
+        <origin xyz="0 ${-base_length/4 - (arm_connect_length/2)} ${-arm_connect_height/2.0 - (base_height/2)}" rpy="0 0 0"/>
     </joint>
 
     <!-- Wheel joints links -->
     <joint name="arm_connect_front_right_wheel_joint" type="fixed">
         <parent link="front_arm_connect_link"/>
         <child link="front_right_wheel_joint_link"/>
-        <origin xyz="${-0.51 / scalex} ${-0.09/ scalex} ${0.18/ scalex}" rpy="${-pi/2} 0 0.0"/> 
+        <origin xyz="${-0.51 / scalex} ${0.45/ scalex} ${-0.18/ scalex}" rpy="0.0 0.0 0.0"/> 
     </joint>
 
     <joint name="arm_connect_front_left_wheel_joint" type="fixed">
         <parent link="front_arm_connect_link"/>
         <child link="front_left_wheel_joint_link"/>
-        <origin xyz="${0.51/ scalex} ${-0.04/ scalex} ${0.18/ scalex}" rpy="${pi/2} ${pi} 0.0"/> 
+        <origin xyz="${0.51/ scalex} ${0.40/ scalex} ${-0.18/ scalex}" rpy="0.0 0.0 ${pi}"/> 
     </joint>
 
     <joint name="arm_connect_back_right_wheel_joint" type="fixed">
         <parent link="back_arm_connect_link"/>
         <child link="back_right_wheel_joint_link"/>
-        <origin xyz="${-0.51 / scalex} -${0.09 / scalex} ${0.18 / scalex}" rpy="${-pi/2} 0 0.0"/> 
+        <origin xyz="${-0.51 / scalex} ${0.10 / scalex} ${-0.18 / scalex}" rpy="0.0 0 0.0"/> 
     </joint>
 
     <joint name="arm_connect_back_left_wheel_joint" type="fixed">
         <parent link="back_arm_connect_link"/>
         <child link="back_left_wheel_joint_link"/>
-        <origin xyz="${0.51 / scalex} ${-0.04 / scalex} ${0.18 / scalex}" rpy="${pi/2} ${pi} 0.0"/> 
+        <origin xyz="${0.51 / scalex} ${0.40 / scalex} ${-0.18 / scalex}" rpy="0.0 0.0 ${pi}"/> 
     </joint>
 
+    <!-- Outer Wheel Joints -->
     <joint name="arm_connect_o_front_right_wheel_joint" type="fixed">
         <parent link="front_arm_connect_link"/>
         <child link="o_front_right_wheel_joint_link"/>
-        <origin xyz="${-0.51 / scalex} ${-0.45 / scalex} ${0.18 / scalex}" rpy="${pi/2} ${pi} ${pi}"/> 
+        <origin xyz="${-0.51 / scalex} ${0.09 / scalex} ${-0.18 / scalex}" rpy="0 0 0"/> 
     </joint>
 
     <joint name="arm_connect_o_back_right_wheel_joint" type="fixed">
         <parent link="back_arm_connect_link"/>
         <child link="o_back_right_wheel_joint_link"/>
-        <origin xyz="${-0.51 / scalex} ${-0.45 / scalex} ${0.18 / scalex}" rpy="${pi/2} ${pi} ${pi}"/> 
+        <origin xyz="${-0.51 / scalex} ${0.45 / scalex} ${-0.18 / scalex}" rpy="0 0 0"/> 
     </joint>
 
     <joint name="arm_connect_o_front_left_wheel_joint" type="fixed">
         <parent link="front_arm_connect_link"/>
         <child link="o_front_left_wheel_joint_link"/>
-        <origin xyz="${0.51 / scalex} ${-0.40 / scalex} ${0.18 / scalex}" rpy="${pi/2} ${pi} 0"/> 
+        <origin xyz="${0.51 / scalex} ${0.04 / scalex} ${-0.18 / scalex}" rpy="${pi} ${pi} 0"/> 
     </joint>
 
     <joint name="arm_connect_o_back_left_wheel_joint" type="fixed">
         <parent link="back_arm_connect_link"/>
         <child link="o_back_left_wheel_joint_link"/>
-        <origin xyz="${0.51 / scalex} ${-0.40 / scalex} ${0.18 / scalex}" rpy="${pi/2} ${pi} 0"/> 
+        <origin xyz="${0.51 / scalex} ${0.04 / scalex} ${-0.18 / scalex}" rpy="${pi} ${pi} 0"/> 
     </joint>
 
 
@@ -183,28 +184,28 @@
     <joint name="front_r_arm_wheel_joint" type="continuous">
         <parent link="front_left_wheel_joint_link"/>
         <child link="front_r_wheel_link"/>
-        <origin xyz="${-wheel_joint_width/2 + (-wheel_length/3.5)} 0.0 ${wheel_radius /2 + (0.05 / scalex)}" rpy="0 0 ${pi/2} "/>
+        <origin xyz="${-wheel_joint_width/2 + (-wheel_length/3.5)} 0.015 ${-wheel_radius /2 + (0.05 / scalex)}" rpy="0 0 ${pi/2} "/>
         <axis xyz="0.0 -1.0 0.0"/>
     </joint>
 
     <joint name="front_l_arm_wheel_joint" type="continuous">
         <parent link="front_right_wheel_joint_link"/>
         <child link="front_l_wheel_link"/>
-        <origin xyz="${-wheel_joint_width/2 + (-wheel_length/3.5)} 0.0 ${-wheel_radius /2 + (0.05 / scalex)}" rpy="0 0 ${pi/2} "/>
+        <origin xyz="${-wheel_joint_width/2 + (-wheel_length/3.5)} -0.02 ${-wheel_radius /2 + (0.05 / scalex)}" rpy="0 0 ${pi/2} "/>
         <axis xyz="0.0 1.0 0.0"/>
     </joint>
 
     <joint name="back_r_arm_wheel_joint" type="continuous">
         <parent link="back_left_wheel_joint_link"/>
         <child link="back_r_wheel_link"/>
-        <origin xyz="${-wheel_joint_width/2 + (-wheel_length/3.5)} 0.0 ${wheel_radius /2 + (0.05 /scalex)}" rpy="0 0 ${pi/2} "/>
+        <origin xyz="${-wheel_joint_width/2 + (-wheel_length/3.5)} 0.015 ${-wheel_radius /2 + (0.05 /scalex)}" rpy="0 0 ${pi/2} "/>
         <axis xyz="0.0 -1.0 0.0"/>
     </joint>
 
     <joint name="back_l_arm_wheel_joint" type="continuous">
         <parent link="back_right_wheel_joint_link"/>
         <child link="back_l_wheel_link"/>
-        <origin xyz="${-wheel_joint_width/2 + (-wheel_length/3.5)} 0.0 ${-wheel_radius /2 + (0.05 / scalex)}" rpy="0 0 ${pi/2} "/>
+        <origin xyz="${-wheel_joint_width/2 + (-wheel_length/3.5)} 0.015 ${-wheel_radius /2 + (0.05 / scalex)}" rpy="0 0 ${pi/2} "/>
         <axis xyz="0.0 1.0 0.0"/>
     </joint>
 
