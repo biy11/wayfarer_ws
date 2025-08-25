@@ -1,142 +1,151 @@
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/laser_scan.hpp>
 #include <geometry_msgs/msg/twist.hpp>
-#include <iostream>
 
-class LidarNav : public rclcpp::Node{
+#include <algorithm>
+#include <cmath>
+#include <numeric>
+#include <vector>
+#include <string>
+
+class LidarNav : public rclcpp::Node {
 public:
-    LidarNav() 
-    : Node("lidarnav"), left_average(0.0), right_average(0.0), front_average(0.0) {
+  LidarNav()
+  : Node("lidarnav"),
+    left_average_(std::numeric_limits<float>::quiet_NaN()),
+    right_average_(std::numeric_limits<float>::quiet_NaN()),
+    front_average_(std::numeric_limits<float>::quiet_NaN()) {
 
-        //////////////// PUBLISHERS /////////////////
-        cmd_vel_pub_ = this->create_publisher<geometry_msgs::msg::Twist>(
-            "/cmd_vel",10
-        );
+    // ---- Parameters (tunable at runtime) ----
+    this->declare_parameter<double>("safe_distance", 0.5);     // m
+    this->declare_parameter<double>("linear_speed", 0.6);      // m/s
+    this->declare_parameter<double>("turn_speed", 0.8);        // rad/s
+    this->declare_parameter<double>("balance_tolerance", 0.4); // m (how close L/R must be to count as "similar")
 
-        /////////////// SUBSCRIPTIONS ///////////////
-        lidar_sub_ = this->create_subscription<sensor_msgs::msg::LaserScan>(
-            "/scan", 10, std::bind(&LidarNav::lidar_callback, this, std::placeholders::_1)
-        );
-    }
+    safe_distance_      = this->get_parameter("safe_distance").as_double();
+    linear_speed_       = this->get_parameter("linear_speed").as_double();
+    turn_speed_         = this->get_parameter("turn_speed").as_double();
+    balance_tolerance_  = this->get_parameter("balance_tolerance").as_double();
+
+    // ---- Publishers ----
+    cmd_vel_pub_ = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
+
+    // ---- Subscriptions ----
+    lidar_sub_ = this->create_subscription<sensor_msgs::msg::LaserScan>(
+      "/scan", 10, std::bind(&LidarNav::lidar_callback, this, std::placeholders::_1));
+  }
 
 private:
+  // Convert degrees to radians
+  static inline double deg2rad(double deg) { return deg * M_PI / 180.0; }
 
-    void lidar_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg){
-        std::vector<float> ranges = msg->ranges;
-        // RCLCPP_INFO(this->get_logger(), "Range Size: %d",  ranges.size() );
+  void lidar_callback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
+    // Define sectors relative to forward = 0°
+    // front: [-15°, +15°], left: [+75°, +105°], right: [-105°, -75°]
+    front_average_ = get_average_distance(msg, -15.0, +15.0);
+    left_average_  = get_average_distance(msg, +75.0, +105.0);
+    right_average_ = get_average_distance(msg, -105.0, -75.0);
 
+    RCLCPP_INFO(this->get_logger(),
+                "avg(m): front=%.2f  left=%.2f  right=%.2f",
+                front_average_, left_average_, right_average_);
+    RCLCPP_INFO(this->get_logger(), "----------------------------------------");
 
-        this->left_average = get_average_distance(msg, -15, 15);    // front
-        this->front_average  = get_average_distance(msg, 75, 105);     // left
-        this->right_average = get_average_distance(msg, 155, 185);      // right
-        // this->front_average = get_average_distance(msg, -15, 15);
-        // this->right_average = get_average_distance(msg, -105, -75);
-        // this->left_average = get_average_distance(msg, 75, 105);
+    //navigate();  // actively command the robot
+  }
 
+  float get_average_distance(const sensor_msgs::msg::LaserScan::SharedPtr &msg,
+                             double angle_start_deg, double angle_end_deg) {
+    const auto &ranges = msg->ranges;
 
+    const double start_rad = deg2rad(angle_start_deg);
+    const double end_rad   = deg2rad(angle_end_deg);
 
-        RCLCPP_INFO(this->get_logger(), "Left Average: %.2f",  this->left_average );
-        // RCLCPP_INFO(this->get_logger(), "front Average: %.2f",  this->front_average );
-        RCLCPP_INFO(this->get_logger(), "right Average: %.2f",  this->right_average );
-        RCLCPP_INFO(this->get_logger(), "----------------------------------------" );
+    // Compute indices (clamped to bounds)
+    const int idx_start = std::max(
+        0, static_cast<int>(std::floor((start_rad - msg->angle_min) / msg->angle_increment)));
+    const int idx_end = std::min(
+        static_cast<int>(ranges.size()),
+        static_cast<int>(std::floor((end_rad - msg->angle_min) / msg->angle_increment)));
 
-        // RCLCPP_INFO(this->get_logger(), "Angle Increment: %.2f", msg->angle_increment);
-        // RCLCPP_INFO(this->get_logger(), "Angle Min: %.2f, Max: %.2f", msg->angle_min, msg->angle_max);
-
-        
-
-        navigate();
-
+    if (idx_end <= idx_start || ranges.empty()) {
+      return std::numeric_limits<float>::quiet_NaN();
     }
 
-    float sum(std::vector<float> &data){
-        float sum = 0;
-        for (const auto &value: data){
-            sum+= value;
-        }
-        return sum;
+    // Collect valid (finite, within range limits) samples
+    std::vector<float> valid;
+    valid.reserve(static_cast<size_t>(idx_end - idx_start));
+    for (int i = idx_start; i < idx_end; ++i) {
+      const float v = ranges[i];
+      if (std::isfinite(v) && v >= msg->range_min && v <= msg->range_max) {
+        valid.push_back(v);
+      }
     }
 
-    float get_average_distance(const sensor_msgs::msg::LaserScan::SharedPtr msg, int angle_start_deg, int angle_end_deg){
-        float angle_min = msg->angle_min;
-        float angle_increment = msg->angle_increment;
-        std::vector<float> ranges = msg->ranges;
-
-        // Conversion from dgrees to radiants
-        float start_rad = (angle_start_deg * M_PI) / 180;
-        float end_rad = (angle_end_deg * M_PI) /180;
-
-        // Clamp indicies within bounds
-        int start_index = std::max(0, static_cast<int>(std::floor((start_rad - angle_min) / angle_increment)));
-        int end_index = std::min(static_cast<int>(ranges.size()), static_cast<int>(std::floor((end_rad - angle_min) / angle_increment)));
-
-        std::vector<float> valid_values;
-        for(int i = start_index; i < end_index; i++){
-            if(ranges[i] != INFINITY){
-                valid_values.push_back(ranges[i]);
-            }
-        }
-        if (!valid_values.empty()){
-            return sum(valid_values) / valid_values.size();
-        }
-        else{
-            return NAN;
-        }
-
+    if (valid.empty()) {
+      // If nothing valid, treat as "no obstacle" = max range
+      return msg->range_max;
     }
 
-    void rover_move(float linear, float angular){
-        geometry_msgs::msg::Twist msg;
-        msg.linear.x = linear;
-        msg.angular.z = angular;
-        cmd_vel_pub_->publish(msg);
+    const double sum = std::accumulate(valid.begin(), valid.end(), 0.0);
+    return static_cast<float>(sum / static_cast<double>(valid.size()));
+  }
+
+  void rover_move(double linear, double angular) {
+    geometry_msgs::msg::Twist msg;
+    msg.linear.x  = linear;
+    msg.angular.z = angular;
+    cmd_vel_pub_->publish(msg);
+  }
+
+  void navigate() {
+    // Basic rule-based navigation:
+    //
+    // 1) If obstacle ahead (closer than safe_distance_), decide turn direction:
+    //    - If left and right are similar (|L-R| < balance_tolerance_), default left turn
+    //    - Else turn toward the side with more space (larger average)
+    // 2) Otherwise, go forward
+
+    const bool obstacle_ahead = (front_average_ <= static_cast<float>(safe_distance_));
+
+    if (obstacle_ahead) {
+      const double diff_lr = std::fabs(static_cast<double>(right_average_ - left_average_));
+
+      if (diff_lr < balance_tolerance_) {
+        RCLCPP_INFO(this->get_logger(), "Obstacle ahead → turning left (default)");
+        rover_move(0.0, +turn_speed_);
+      } else if (right_average_ > left_average_) {
+        RCLCPP_INFO(this->get_logger(), "Obstacle ahead → turning right (more space on right)");
+        rover_move(0.0, -turn_speed_);
+      } else {
+        RCLCPP_INFO(this->get_logger(), "Obstacle ahead → turning left (more space on left)");
+        rover_move(0.0, +turn_speed_);
+      }
+    } else {
+      RCLCPP_INFO(this->get_logger(), "Path clear → moving forward");
+      rover_move(linear_speed_, 0.0);
     }
+  }
 
-    void navigate(){
-        // if(front_average < 0.5){
-        //     RCLCPP_INFO(this->get_logger(), "Obstacle detected ahead");
-        //     rover_move(0.0, 0.75);
-        // }else if(right_average < 0.5){
-        //     RCLCPP_INFO(this->get_logger(), "Turning left");
-        //     rover_move(0.0, -0.75);
-        // }else{
-        //     RCLCPP_INFO(this->get_logger(), "Moving forwards");
-        //     rover_move(1.5, 0.0);
-        // }
+  // Latest sector averages
+  float left_average_;
+  float right_average_;
+  float front_average_;
 
-        if(front_average < 0.5){
-            if(std::abs(right_average - left_average) < 0.4){
-                RCLCPP_INFO(this->get_logger(), "Obstacle detected - Turning left (default)");
-                rover_move(0.0, 0.75);
-            }else if(right_average > left_average){
-                RCLCPP_INFO(this->get_logger(), "Turning left");
-                rover_move(0.0, 0.75);
-            }else{
-                RCLCPP_INFO(this->get_logger(), "Turning right");
-                rover_move(0.0, -0.75);
-            }
-        }else{
-            RCLCPP_INFO(this->get_logger(), "Moving forward");
-            rover_move(1.5, 0.0);
-        }
+  // Tunables
+  double safe_distance_;
+  double linear_speed_;
+  double turn_speed_;
+  double balance_tolerance_;
 
-        
-        
-    }
-
-    float left_average;
-    float right_average;
-    float front_average;  
-    rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr lidar_sub_;
-    rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_pub_;
+  // ROS interfaces
+  rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr lidar_sub_;
+  rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr       cmd_vel_pub_;
 };
 
-int main(int argc, char* argv[]){
-    rclcpp::init(argc, argv);
-    auto node = std::make_shared<LidarNav>();
-    rclcpp::spin(node);
-    rclcpp::shutdown();
-    return 0;
-
-
+int main(int argc, char *argv[]) {
+  rclcpp::init(argc, argv);
+  rclcpp::spin(std::make_shared<LidarNav>());
+  rclcpp::shutdown();
+  return 0;
 }
