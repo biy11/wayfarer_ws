@@ -8,19 +8,19 @@
 #include <vector>
 #include <string>
 
-class LidarNav : public rclcpp::Node {
+class ObstAvoidance : public rclcpp::Node {
 public:
-  LidarNav()
-  : Node("lidarnav"),
+  ObstAvoidance()
+  : Node("ObstAvoidance"),
     left_average_(std::numeric_limits<float>::quiet_NaN()),
     right_average_(std::numeric_limits<float>::quiet_NaN()),
     front_average_(std::numeric_limits<float>::quiet_NaN()) {
 
     // ---- Parameters (tunable at runtime) ----
-    this->declare_parameter<double>("safe_distance", 0.5);     // m
-    this->declare_parameter<double>("linear_speed", 0.);      // m/s
-    this->declare_parameter<double>("turn_speed", 1.0);        // rad/s
-    this->declare_parameter<double>("balance_tolerance", 0.4); // m (how close L/R must be to count as "similar")
+    this->declare_parameter<double>("safe_distance", 0.2);     // m
+    this->declare_parameter<double>("linear_speed", 1.0);      // m/s
+    this->declare_parameter<double>("turn_speed", 0.8);        // rad/s
+    this->declare_parameter<double>("balance_tolerance", 0.2); // m (how close L/R must be to count as "similar")
 
     safe_distance_      = this->get_parameter("safe_distance").as_double();
     linear_speed_       = this->get_parameter("linear_speed").as_double();
@@ -32,7 +32,7 @@ public:
 
     // ---- Subscriptions ----
     lidar_sub_ = this->create_subscription<sensor_msgs::msg::LaserScan>(
-      "/scan", 10, std::bind(&LidarNav::lidar_callback, this, std::placeholders::_1));
+      "/scan", 10, std::bind(&ObstAvoidance::lidar_callback, this, std::placeholders::_1));
   }
 
 private:
@@ -46,12 +46,15 @@ private:
     left_average_  = get_average_distance(msg, +75.0, +105.0);
     right_average_ = get_average_distance(msg, -105.0, -75.0);
 
+    RCLCPP_INFO(this->get_logger(), "----------------------------------------");
     RCLCPP_INFO(this->get_logger(),
                 "avg(m): front=%.2f  left=%.2f  right=%.2f",
                 front_average_, left_average_, right_average_);
     RCLCPP_INFO(this->get_logger(), "----------------------------------------");
+    RCLCPP_INFO(this->get_logger(), "");
 
     navigate();  // actively command the robot
+    //RCLCPP_INFO(this->get_logger(), "New file");
   }
 
   float get_average_distance(const sensor_msgs::msg::LaserScan::SharedPtr &msg,
@@ -98,32 +101,48 @@ private:
     cmd_vel_pub_->publish(msg);
   }
 
-  void navigate() {
-    // Basic rule-based navigation:
-    //
-    // 1) If obstacle ahead (closer than safe_distance_), decide turn direction:
-    //    - If left and right are similar (|L-R| < balance_tolerance_), default left turn
-    //    - Else turn toward the side with more space (larger average)
-    // 2) Otherwise, go forward
+  // void navigate() {
+  //   // Basic rule-based navigation:
+  //   //
+  //   // 1) If obstacle ahead (closer than safe_distance_), decide turn direction:
+  //   //    - If left and right are similar (|L-R| < balance_tolerance_), default left turn
+  //   //    - Else turn toward the side with more space (larger average)
+  //   // 2) Otherwise, go forward
 
-    const bool obstacle_ahead = (front_average_ <= static_cast<float>(safe_distance_));
+  //   const bool obstacle_ahead = (front_average_ <= static_cast<float>(safe_distance_));
 
-    if (obstacle_ahead) {
-      const double diff_lr = std::fabs(static_cast<double>(right_average_ - left_average_));
+  //   if (obstacle_ahead) {
+  //     const double diff_lr = std::fabs(static_cast<double>(right_average_ - left_average_));
 
-      if (diff_lr < balance_tolerance_) {
-        RCLCPP_INFO(this->get_logger(), "Obstacle ahead → turning left (default)");
-        rover_move(0.0, +turn_speed_);
-      } else if (right_average_ > left_average_) {
-        RCLCPP_INFO(this->get_logger(), "Obstacle ahead → turning right (more space on right)");
-        rover_move(0.0, -turn_speed_);
-      } else {
-        RCLCPP_INFO(this->get_logger(), "Obstacle ahead → turning left (more space on left)");
-        rover_move(0.0, +turn_speed_);
-      }
-    } else {
-      RCLCPP_INFO(this->get_logger(), "Path clear → moving forward");
+  //     if (diff_lr < balance_tolerance_) {
+  //       RCLCPP_INFO(this->get_logger(), "Obstacle ahead → turning left (default)");
+  //       rover_move(0.0, +turn_speed_);
+  //     } else if (right_average_ > left_average_) {
+  //       RCLCPP_INFO(this->get_logger(), "Obstacle ahead → turning right (more space on right)");
+  //       rover_move(0.0, -turn_speed_);
+  //     } else {
+  //       RCLCPP_INFO(this->get_logger(), "Obstacle ahead → turning left (more space on left)");
+  //       rover_move(0.0, +turn_speed_);
+  //     }
+  //   } else {
+  //     RCLCPP_INFO(this->get_logger(), "Path clear → moving forward");
+  //     rover_move(linear_speed_, 0.0);
+  //   }
+  // }
+
+  void navigate(){
+     
+    const bool obst_ahead = (front_average_ <= static_cast<float>(safe_distance_));
+    const bool obst_left = (left_average_ <= static_cast<float>(safe_distance_ - 0.2));
+    const bool obst_right = (right_average_ <= static_cast<float>(safe_distance_ -0.2));
+
+    return;
+    if(obst_left < 0.4){
+      RCLCPP_INFO(this->get_logger(), "Path clear -> moving forward [distance : %.2f]", left_average_);
       rover_move(linear_speed_, 0.0);
+    }else{
+      rover_move(0.0,0.0);
+      RCLCPP_INFO(this->get_logger(), "Obstancle detceted -> stopping robot [ditsance : %.2f]", left_average_);
     }
   }
 
@@ -145,7 +164,7 @@ private:
 
 int main(int argc, char *argv[]) {
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<LidarNav>());
+  rclcpp::spin(std::make_shared<ObstAvoidance>());
   rclcpp::shutdown();
   return 0;
 }

@@ -13,11 +13,14 @@ find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 
 add_executable(lidar_nav src/lidar_nav.cpp)
+add_executable(obst_avoidance src/obst_avoidance.cpp)
 ament_target_dependencies(lidar_nav rclcpp std_msgs sensor_msgs geometry_msgs)
+ament_target_dependencies(obst_avoidance rclcpp std_msgs sensor_msgs geometry_msgs)
+
 
 
 install(
-  TARGETS lidar_nav
+  TARGETS lidar_nav obst_avoidance
   DESTINATION lib/${PROJECT_NAME}
 )
 if(BUILD_TESTING)
